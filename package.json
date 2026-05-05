@@ -2,7 +2,7 @@
   "scripts": {
     "dev:api": "tsx watch src/api.ts",
     "dev:worker": "tsx watch src/worker.ts",
-    "db:migrate": "psql \"$DATABASE_URL\" -f db/migrations/001_create_jobs_table.sql && psql \"$DATABASE_URL\" -f db/migrations/002_create_job_attempts_table.sql"
+    "db:migrate": "psql \"$DATABASE_URL\" -f db/migrations/001_create_jobs_table.sql && psql \"$DATABASE_URL\" -f db/migrations/002_create_job_attempts_table.sql && psql \"$DATABASE_URL\" -f db/migrations/003_create_workers_table.sql"
   },
   "dependencies": {
     "dotenv": "^17.4.2",

@@ -10,8 +10,11 @@ import {
     Job,
 } from "./jobs.js";
 import { closePool } from "./db.js";
+import { registerWorker } from "./workers.js";
 
-const workerId = `${os.hostname()}-${process.pid}`;
+const hostname = os.hostname();
+const processId = process.pid;
+const workerId = `${hostname}-${processId}`;
 
 let shuttingDown = false;
 
@@ -49,7 +52,13 @@ async function processJob(job: Job): Promise<void> {
 }
 
 async function workerLoop() {
-    console.log(`[${workerId}] worker started`);
+    await registerWorker({
+        id: workerId,
+        hostname,
+        processId,
+    });
+
+    console.log(`[${workerId}] worker registered and started`);
 
     while (!shuttingDown) {
         const job = await claimNextJob({
