@@ -1,0 +1,20 @@
+{
+  "scripts": {
+    "dev:api": "tsx watch src/api.ts",
+    "dev:worker": "tsx watch src/worker.ts",
+    "db:migrate": "psql \"$DATABASE_URL\" -f db/migrations/001_create_jobs_table.sql && psql \"$DATABASE_URL\" -f db/migrations/002_create_job_attempts_table.sql"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "pg": "^8.20.0",
+    "zod": "^4.4.2"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.6.0",
+    "@types/pg": "^8.20.0",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3"
+  }
+}
