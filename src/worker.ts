@@ -10,13 +10,15 @@ import {
     Job,
 } from "./jobs.js";
 import { closePool } from "./db.js";
-import { registerWorker } from "./workers.js";
+import { registerWorker, heartbeatWorker } from "./workers.js";
 
 const hostname = os.hostname();
 const processId = process.pid;
 const workerId = `${hostname}-${processId}`;
+const heartbeatIntervalMs = 5000;
 
 let shuttingDown = false;
+let heartbeatTimer: NodeJS.Timeout | null = null;
 
 type JobHandler = (job: Job) => Promise<void>;
 
@@ -51,12 +53,24 @@ async function processJob(job: Job): Promise<void> {
     await handler(job);
 }
 
+function startHeartbeat() {
+    heartbeatTimer = setInterval(async () => {
+        try {
+            await heartbeatWorker(workerId);
+        } catch (error) {
+            console.error(`[${workerId}] heartbeat failed`, error);
+        }
+    }, heartbeatIntervalMs);
+}
+
 async function workerLoop() {
     await registerWorker({
         id: workerId,
         hostname,
         processId,
     });
+
+    startHeartbeat();
 
     console.log(`[${workerId}] worker registered and started`);
 
@@ -118,6 +132,11 @@ async function workerLoop() {
 async function shutdown() {
     console.log(`[${workerId}] shutting down`);
     shuttingDown = true;
+
+    if (heartbeatTimer) {
+        clearInterval(heartbeatTimer);
+        heartbeatTimer = null;
+    }
 
     await closePool();
     process.exit(0);
