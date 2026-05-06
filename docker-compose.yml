@@ -23,6 +23,7 @@ services:
 
   api:
     image: mcr.microsoft.com/devcontainers/typescript-node:20
+    init: true
     volumes:
       - .:/workspace:cached
     working_dir: /workspace
@@ -37,10 +38,12 @@ services:
 
   worker:
     image: mcr.microsoft.com/devcontainers/typescript-node:20
+    init: true
     volumes:
       - .:/workspace:cached
     working_dir: /workspace
-    command: npm run dev:worker
+    entrypoint: ["node"]
+    command: ["--import", "tsx", "src/worker.ts"]
     depends_on:
       - postgres
     environment:

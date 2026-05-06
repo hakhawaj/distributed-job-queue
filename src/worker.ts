@@ -10,7 +10,11 @@ import {
     Job,
 } from "./jobs.js";
 import { closePool } from "./db.js";
-import { registerWorker, heartbeatWorker } from "./workers.js";
+import {
+    registerWorker,
+    heartbeatWorker,
+    markWorkerStopped,
+} from "./workers.js";
 
 const hostname = os.hostname();
 const processId = process.pid;
@@ -18,6 +22,7 @@ const workerId = `${hostname}-${processId}`;
 const heartbeatIntervalMs = 5000;
 
 let shuttingDown = false;
+let shutdownStarted = false;
 let heartbeatTimer: NodeJS.Timeout | null = null;
 
 type JobHandler = (job: Job) => Promise<void>;
@@ -129,24 +134,67 @@ async function workerLoop() {
     console.log(`[${workerId}] worker stopped`);
 }
 
-async function shutdown() {
-    console.log(`[${workerId}] shutting down`);
-    shuttingDown = true;
-
+function stopHeartbeat() {
     if (heartbeatTimer) {
         clearInterval(heartbeatTimer);
         heartbeatTimer = null;
     }
-
-    await closePool();
-    process.exit(0);
 }
 
-process.on("SIGINT", shutdown);
-process.on("SIGTERM", shutdown);
+async function markStoppedSafely(context: string) {
+    try {
+        await markWorkerStopped(workerId);
+        console.log(`[${workerId}] marked worker as stopped (${context})`);
+    } catch (error) {
+        console.error(`[${workerId}] failed to mark worker as stopped (${context})`, error);
+    }
+}
 
-workerLoop().catch(async (error) => {
-    console.error(`[${workerId}] fatal worker error`, error);
+async function shutdown(
+    reason: "SIGINT" | "SIGTERM" | "fatal" | "uncaughtException" | "unhandledRejection",
+    exitCode = 0
+) {
+    if (shutdownStarted) {
+        return;
+    }
+
+    shutdownStarted = true;
+    shuttingDown = true;
+
+    console.log(`[${workerId}] shutting down from ${reason}`);
+
+    stopHeartbeat();
+
+    await markStoppedSafely(reason);
+
     await closePool();
-    process.exit(1);
+
+    console.log(`[${workerId}] shutdown complete`);
+
+    process.exit(exitCode);
+}
+
+process.on("SIGINT", () => {
+    console.log(`[${workerId}] received SIGINT`);
+    void shutdown("SIGINT", 0);
+});
+
+process.on("SIGTERM", () => {
+    console.log(`[${workerId}] received SIGTERM`);
+    void shutdown("SIGTERM", 0);
+});
+
+process.on("uncaughtException", (error) => {
+    console.error(`[${workerId}] uncaught exception`, error);
+    void shutdown("uncaughtException", 1);
+});
+
+process.on("unhandledRejection", (reason) => {
+    console.error(`[${workerId}] unhandled rejection`, reason);
+    void shutdown("unhandledRejection", 1);
+});
+
+workerLoop().catch((error) => {
+    console.error(`[${workerId}] fatal worker error`, error);
+    void shutdown("fatal", 1);
 });
