@@ -13,6 +13,11 @@ export type WorkerRecord = {
     jobs_processed: number;
 };
 
+export type WorkerWithHealth = WorkerRecord & {
+    heartbeat_age_seconds: number;
+    is_alive: boolean;
+};
+
 export async function registerWorker(input: {
     id: string;
     hostname: string;
@@ -103,6 +108,65 @@ export async function listWorkers(): Promise<WorkerRecord[]> {
     FROM workers
     ORDER BY started_at DESC
     `
+    );
+
+    return result.rows;
+}
+
+export async function listWorkersWithHealth(input?: {
+    aliveThresholdSeconds?: number;
+}): Promise<WorkerWithHealth[]> {
+    const aliveThresholdSeconds = input?.aliveThresholdSeconds ?? 15;
+
+    const result = await pool.query<WorkerWithHealth>(
+        `
+      SELECT
+        id,
+        hostname,
+        process_id,
+        status,
+        started_at,
+        last_heartbeat_at,
+        stopped_at,
+        jobs_processed,
+        EXTRACT(EPOCH FROM (now() - last_heartbeat_at))::int AS heartbeat_age_seconds,
+        (
+          status = 'running'
+          AND last_heartbeat_at > now() - ($1::int * interval '1 second')
+        ) AS is_alive
+      FROM workers
+      ORDER BY started_at DESC
+      `,
+        [aliveThresholdSeconds]
+    );
+
+    return result.rows;
+}
+
+export async function listAliveWorkers(input?: {
+    aliveThresholdSeconds?: number;
+}): Promise<WorkerWithHealth[]> {
+    const aliveThresholdSeconds = input?.aliveThresholdSeconds ?? 15;
+
+    const result = await pool.query<WorkerWithHealth>(
+        `
+      SELECT
+        id,
+        hostname,
+        process_id,
+        status,
+        started_at,
+        last_heartbeat_at,
+        stopped_at,
+        jobs_processed,
+        EXTRACT(EPOCH FROM (now() - last_heartbeat_at))::int AS heartbeat_age_seconds,
+        true AS is_alive
+      FROM workers
+      WHERE status = 'running'
+        AND last_heartbeat_at > now() - ($1::int * interval '1 second')
+      ORDER BY started_at DESC
+      `,
+        [aliveThresholdSeconds]
     );
 
     return result.rows;

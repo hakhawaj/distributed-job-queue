@@ -6,7 +6,11 @@ import {
     listJobs,
     listJobAttempts,
 } from "./jobs.js";
-import { getWorkerById, listWorkers } from "./workers.js";
+import {
+    getWorkerById,
+    listAliveWorkers,
+    listWorkersWithHealth,
+} from "./workers.js";
 
 const app = express();
 
@@ -92,9 +96,14 @@ app.get("/jobs/:id/attempts", async (req, res, next) => {
     }
 });
 
-app.get("/workers", async (_req, res, next) => {
+app.get("/workers", async (req, res, next) => {
     try {
-        const workers = await listWorkers();
+        const activeOnly = req.query.active === "true";
+
+        const workers = activeOnly
+            ? await listAliveWorkers()
+            : await listWorkersWithHealth();
+
         res.json(workers);
     } catch (error) {
         next(error);
