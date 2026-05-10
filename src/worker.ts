@@ -76,21 +76,21 @@ function startHeartbeat() {
 
 function startStaleJobRecovery() {
     staleJobRecoveryTimer = setInterval(async () => {
-      try {
-        const recoveredJobs = await recoverStaleJobs({
-          staleAfterSeconds: staleJobTimeoutSeconds,
-        });
-  
-        if (recoveredJobs.length > 0) {
-          console.log(
-            `[${workerId}] recovered ${recoveredJobs.length} stale job(s)`
-          );
+        try {
+            const recoveredJobs = await recoverStaleJobs({
+                staleAfterSeconds: staleJobTimeoutSeconds,
+            });
+
+            if (recoveredJobs.length > 0) {
+                console.log(
+                    `[${workerId}] recovered ${recoveredJobs.length} stale job(s)`
+                );
+            }
+        } catch (error) {
+            console.error(`[${workerId}] stale job recovery failed`, error);
         }
-      } catch (error) {
-        console.error(`[${workerId}] stale job recovery failed`, error);
-      }
     }, staleJobRecoveryIntervalMs);
-  }
+}
 
 async function workerLoop() {
     await registerWorker({
@@ -170,10 +170,10 @@ function stopHeartbeat() {
 
 function stopStaleJobRecovery() {
     if (staleJobRecoveryTimer) {
-      clearInterval(staleJobRecoveryTimer);
-      staleJobRecoveryTimer = null;
+        clearInterval(staleJobRecoveryTimer);
+        staleJobRecoveryTimer = null;
     }
-  }
+}
 
 async function markStoppedSafely(context: string) {
     try {
