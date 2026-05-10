@@ -45,6 +45,12 @@ export type QueueStatusCount = {
   count: number;
 };
 
+export type QueueSummary = {
+  queueName: string;
+  counts: Record<JobStatus, number>;
+  total: number;
+};
+
 export async function createJob(input: {
   queueName: string;
   type: string;
@@ -318,6 +324,31 @@ export async function getQueueStatusCounts(): Promise<QueueStatusCount[]> {
   return result.rows;
 }
 
+export async function getQueueSummaries(): Promise<QueueSummary[]> {
+  const rows = await getQueueStatusCounts();
+
+  const summaries = new Map<string, QueueSummary>();
+
+  for (const row of rows) {
+    const existing =
+      summaries.get(row.queue_name) ??
+      {
+        queueName: row.queue_name,
+        counts: createEmptyStatusCounts(),
+        total: 0,
+      };
+
+    existing.counts[row.status] = row.count;
+    existing.total += row.count;
+
+    summaries.set(row.queue_name, existing);
+  }
+
+  return Array.from(summaries.values()).sort((a, b) =>
+    a.queueName.localeCompare(b.queueName)
+  );
+}
+
 export async function listDeadJobs(limit = 50): Promise<Job[]> {
   const result = await pool.query<Job>(
     `
@@ -331,4 +362,22 @@ export async function listDeadJobs(limit = 50): Promise<Job[]> {
   );
 
   return result.rows;
+}
+
+const jobStatuses: JobStatus[] = [
+  "queued",
+  "running",
+  "completed",
+  "failed",
+  "dead",
+];
+
+function createEmptyStatusCounts(): Record<JobStatus, number> {
+  return {
+    queued: 0,
+    running: 0,
+    completed: 0,
+    failed: 0,
+    dead: 0,
+  };
 }

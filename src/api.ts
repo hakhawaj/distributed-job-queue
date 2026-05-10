@@ -6,7 +6,7 @@ import {
     listJobs,
     listJobAttempts,
     getJobStatusCounts,
-    getQueueStatusCounts,
+    getQueueSummaries,
     listDeadJobs,
 } from "./jobs.js";
 import {
@@ -144,7 +144,7 @@ app.get("/stats", async (_req, res, next) => {
 
 app.get("/queues", async (_req, res, next) => {
     try {
-        const queues = await getQueueStatusCounts();
+        const queues = await getQueueSummaries();
 
         res.json(queues);
     } catch (error) {
