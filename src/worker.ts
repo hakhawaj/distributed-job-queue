@@ -14,6 +14,7 @@ import {
     registerWorker,
     heartbeatWorker,
     markWorkerStopped,
+    incrementWorkerJobsProcessed
 } from "./workers.js";
 
 const hostname = os.hostname();
@@ -108,6 +109,8 @@ async function workerLoop() {
             });
 
             await completeJob(job.id);
+
+            await incrementWorkerJobsProcessed(workerId);
 
             console.log(
                 `[${workerId}] completed job ${job.id} attempt=${job.attempts}`
