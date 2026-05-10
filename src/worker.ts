@@ -22,6 +22,8 @@ const hostname = os.hostname();
 const processId = process.pid;
 const workerId = `${hostname}-${processId}`;
 
+const queueName = process.env.QUEUE_NAME || undefined;
+
 const heartbeatIntervalMs = 5000;
 const staleJobRecoveryIntervalMs = 10000;
 const staleJobTimeoutSeconds = 30;
@@ -102,12 +104,14 @@ async function workerLoop() {
     startHeartbeat();
     startStaleJobRecovery();
 
-    console.log(`[${workerId}] worker registered and started`);
+    console.log(
+        `[${workerId}] worker registered and started. queue=${queueName ?? "all"}`
+    );
 
     while (!shuttingDown) {
         const job = await claimNextJob({
             workerId,
-            queueName: "default",
+            queueName,
         });
 
         if (!job) {
