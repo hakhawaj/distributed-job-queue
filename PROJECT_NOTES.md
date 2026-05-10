@@ -167,6 +167,20 @@ The worker also handles:
 - Uncaught exceptions
 - Unhandled promise rejections
 
+## Queue Processing
+
+Workers process all queues by default.
+
+If `QUEUE_NAME` is set, the worker only claims jobs from that queue.
+
+Examples:
+
+```text
+QUEUE_NAME unset     -> process all queues
+QUEUE_NAME=emails    -> process only emails queue
+QUEUE_NAME=default   -> process only default queue
+```
+
 ## Worker Health
 
 The `workers` table keeps historical worker records. Old workers are not automatically deleted because they are useful for debugging and lifecycle history.
