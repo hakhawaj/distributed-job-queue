@@ -6,6 +6,7 @@ import {
     listJobs,
     listJobAttempts,
 } from "./jobs.js";
+import { getWorkerById, listWorkers } from "./workers.js";
 
 const app = express();
 
@@ -86,6 +87,32 @@ app.get("/jobs/:id/attempts", async (req, res, next) => {
         const attempts = await listJobAttempts(req.params.id);
 
         res.json(attempts);
+    } catch (error) {
+        next(error);
+    }
+});
+
+app.get("/workers", async (_req, res, next) => {
+    try {
+        const workers = await listWorkers();
+        res.json(workers);
+    } catch (error) {
+        next(error);
+    }
+});
+
+app.get("/workers/:id", async (req, res, next) => {
+    try {
+        const worker = await getWorkerById(req.params.id);
+
+        if (!worker) {
+            res.status(404).json({
+                error: "Worker not found",
+            });
+            return;
+        }
+
+        res.json(worker);
     } catch (error) {
         next(error);
     }
