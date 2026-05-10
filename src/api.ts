@@ -5,6 +5,9 @@ import {
     getJobById,
     listJobs,
     listJobAttempts,
+    getJobStatusCounts,
+    getQueueStatusCounts,
+    listDeadJobs,
 } from "./jobs.js";
 import {
     getWorkerById,
@@ -122,6 +125,42 @@ app.get("/workers/:id", async (req, res, next) => {
         }
 
         res.json(worker);
+    } catch (error) {
+        next(error);
+    }
+});
+
+app.get("/stats", async (_req, res, next) => {
+    try {
+        const jobStatusCounts = await getJobStatusCounts();
+
+        res.json({
+            jobs: jobStatusCounts,
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+app.get("/queues", async (_req, res, next) => {
+    try {
+        const queues = await getQueueStatusCounts();
+
+        res.json(queues);
+    } catch (error) {
+        next(error);
+    }
+});
+
+app.get("/dead", async (req, res, next) => {
+    try {
+        const limitRaw = req.query.limit;
+        const limit =
+            typeof limitRaw === "string" ? Number.parseInt(limitRaw, 10) : 50;
+
+        const jobs = await listDeadJobs(Number.isFinite(limit) ? limit : 50);
+
+        res.json(jobs);
     } catch (error) {
         next(error);
     }

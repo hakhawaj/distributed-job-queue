@@ -34,6 +34,17 @@ export type JobAttempt = {
   created_at: Date;
 };
 
+export type JobStatusCount = {
+  status: JobStatus;
+  count: number;
+};
+
+export type QueueStatusCount = {
+  queue_name: string;
+  status: JobStatus;
+  count: number;
+};
+
 export async function createJob(input: {
   queueName: string;
   type: string;
@@ -271,6 +282,52 @@ export async function listJobAttempts(jobId: string): Promise<JobAttempt[]> {
     ORDER BY started_at ASC
     `,
     [jobId]
+  );
+
+  return result.rows;
+}
+
+export async function getJobStatusCounts(): Promise<JobStatusCount[]> {
+  const result = await pool.query<JobStatusCount>(
+    `
+    SELECT
+      status,
+      COUNT(*)::int AS count
+    FROM jobs
+    GROUP BY status
+    ORDER BY status
+    `
+  );
+
+  return result.rows;
+}
+
+export async function getQueueStatusCounts(): Promise<QueueStatusCount[]> {
+  const result = await pool.query<QueueStatusCount>(
+    `
+    SELECT
+      queue_name,
+      status,
+      COUNT(*)::int AS count
+    FROM jobs
+    GROUP BY queue_name, status
+    ORDER BY queue_name, status
+    `
+  );
+
+  return result.rows;
+}
+
+export async function listDeadJobs(limit = 50): Promise<Job[]> {
+  const result = await pool.query<Job>(
+    `
+    SELECT *
+    FROM jobs
+    WHERE status = 'dead'
+    ORDER BY updated_at DESC
+    LIMIT $1
+    `,
+    [limit]
   );
 
   return result.rows;
