@@ -220,6 +220,27 @@ export async function recoverStaleJobs(input: {
   return result.rows;
 }
 
+export async function requeueDeadJob(id: string): Promise<Job | null> {
+  const result = await pool.query<Job>(
+    `
+    UPDATE jobs
+    SET status = 'queued',
+        attempts = 0,
+        run_at = now(),
+        locked_by = NULL,
+        locked_at = NULL,
+        error_message = NULL,
+        updated_at = now()
+    WHERE id = $1
+      AND status = 'dead'
+    RETURNING *
+    `,
+    [id]
+  );
+
+  return result.rows[0] ?? null;
+}
+
 export async function createJobAttempt(input: {
   jobId: string;
   workerId: string;

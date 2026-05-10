@@ -8,6 +8,7 @@ import {
     getJobStatusCounts,
     getQueueSummaries,
     listDeadJobs,
+    requeueDeadJob,
 } from "./jobs.js";
 import {
     getWorkerById,
@@ -161,6 +162,23 @@ app.get("/dead", async (req, res, next) => {
         const jobs = await listDeadJobs(Number.isFinite(limit) ? limit : 50);
 
         res.json(jobs);
+    } catch (error) {
+        next(error);
+    }
+});
+
+app.post("/jobs/:id/requeue", async (req, res, next) => {
+    try {
+        const job = await requeueDeadJob(req.params.id);
+
+        if (!job) {
+            res.status(404).json({
+                error: "Dead job not found",
+            });
+            return;
+        }
+
+        res.json(job);
     } catch (error) {
         next(error);
     }
