@@ -7,6 +7,7 @@ import {
     createJobAttempt,
     completeJobAttempt,
     failJobAttempt,
+    recoverStaleJobs,
     Job,
 } from "./jobs.js";
 import { closePool } from "./db.js";
@@ -20,11 +21,15 @@ import {
 const hostname = os.hostname();
 const processId = process.pid;
 const workerId = `${hostname}-${processId}`;
+
 const heartbeatIntervalMs = 5000;
+const staleJobRecoveryIntervalMs = 10000;
+const staleJobTimeoutSeconds = 30;
 
 let shuttingDown = false;
 let shutdownStarted = false;
 let heartbeatTimer: NodeJS.Timeout | null = null;
+let staleJobRecoveryTimer: NodeJS.Timeout | null = null;
 
 type JobHandler = (job: Job) => Promise<void>;
 
@@ -69,6 +74,24 @@ function startHeartbeat() {
     }, heartbeatIntervalMs);
 }
 
+function startStaleJobRecovery() {
+    staleJobRecoveryTimer = setInterval(async () => {
+      try {
+        const recoveredJobs = await recoverStaleJobs({
+          staleAfterSeconds: staleJobTimeoutSeconds,
+        });
+  
+        if (recoveredJobs.length > 0) {
+          console.log(
+            `[${workerId}] recovered ${recoveredJobs.length} stale job(s)`
+          );
+        }
+      } catch (error) {
+        console.error(`[${workerId}] stale job recovery failed`, error);
+      }
+    }, staleJobRecoveryIntervalMs);
+  }
+
 async function workerLoop() {
     await registerWorker({
         id: workerId,
@@ -77,6 +100,7 @@ async function workerLoop() {
     });
 
     startHeartbeat();
+    startStaleJobRecovery();
 
     console.log(`[${workerId}] worker registered and started`);
 
@@ -144,6 +168,13 @@ function stopHeartbeat() {
     }
 }
 
+function stopStaleJobRecovery() {
+    if (staleJobRecoveryTimer) {
+      clearInterval(staleJobRecoveryTimer);
+      staleJobRecoveryTimer = null;
+    }
+  }
+
 async function markStoppedSafely(context: string) {
     try {
         await markWorkerStopped(workerId);
@@ -167,6 +198,7 @@ async function shutdown(
     console.log(`[${workerId}] shutting down from ${reason}`);
 
     stopHeartbeat();
+    stopStaleJobRecovery();
 
     await markStoppedSafely(reason);
 

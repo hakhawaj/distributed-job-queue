@@ -181,6 +181,28 @@ export async function failJob(input: {
   return result.rows[0] ?? null;
 }
 
+export async function recoverStaleJobs(input: {
+  staleAfterSeconds: number;
+}): Promise<Job[]> {
+  const result = await pool.query<Job>(
+    `
+    UPDATE jobs
+    SET status = 'queued',
+        locked_by = NULL,
+        locked_at = NULL,
+        error_message = 'Recovered from stale worker lock',
+        updated_at = now()
+    WHERE status = 'running'
+      AND locked_at IS NOT NULL
+      AND locked_at < now() - ($1::int * interval '1 second')
+    RETURNING *
+    `,
+    [input.staleAfterSeconds]
+  );
+
+  return result.rows;
+}
+
 export async function createJobAttempt(input: {
   jobId: string;
   workerId: string;
